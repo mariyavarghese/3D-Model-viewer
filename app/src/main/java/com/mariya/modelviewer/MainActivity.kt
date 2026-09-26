@@ -16,7 +16,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.filament.utils.Utils
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.io.InputStream
 import java.nio.ByteBuffer
 
@@ -291,6 +290,7 @@ class MainActivity : AppCompatActivity() {
             addView(tvSubtitle)
 
             for (model in ModelItem.ALL_MODELS) {
+                val isAlreadyLoaded = containers.any { it.modelItem.id == model.id }
                 val itemCard = LinearLayout(this@MainActivity).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
@@ -321,25 +321,29 @@ class MainActivity : AppCompatActivity() {
                     val infoLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
 
                     val tvAddBtn = TextView(this@MainActivity).apply {
-                        text = "＋ Add"
-                        setTextColor(Color.parseColor("#38BDF8"))
+                        text = if (isAlreadyLoaded) "✓ Added" else "＋ Add"
+                        val btnColor = if (isAlreadyLoaded) Color.parseColor("#10B981") else Color.parseColor("#38BDF8")
+                        setTextColor(btnColor)
                         textSize = 12f
                         setTypeface(typeface, android.graphics.Typeface.BOLD)
                         setPadding((12 * density).toInt(), (6 * density).toInt(), (12 * density).toInt(), (6 * density).toInt())
                         background = GradientDrawable().apply {
                             cornerRadius = 8f * density
-                            setColor(Color.parseColor("#1A38BDF8"))
-                            setStroke((1 * density).toInt(), Color.parseColor("#38BDF8"))
+                            setColor(if (isAlreadyLoaded) Color.parseColor("#1A10B981") else Color.parseColor("#1A38BDF8"))
+                            setStroke((1 * density).toInt(), btnColor)
                         }
                     }
-
 
                     addView(infoLayout, infoLp)
                     addView(tvAddBtn)
 
                     setOnClickListener {
                         dialog.dismiss()
-                        addModel(model)
+                        if (isAlreadyLoaded) {
+                            Toast.makeText(this@MainActivity, "${model.title} is already on screen", Toast.LENGTH_SHORT).show()
+                        } else {
+                            addModel(model)
+                        }
                     }
                 }
 
@@ -358,6 +362,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun addModel(modelItem: ModelItem) {
+        if (containers.any { it.modelItem.id == modelItem.id }) {
+            Toast.makeText(this, "${modelItem.title} is already loaded", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val density = resources.displayMetrics.density
         val screenW = modelCanvas.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
         val screenH = modelCanvas.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
@@ -396,7 +405,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadAllModels() {
-        for (model in ModelItem.ALL_MODELS) {
+        val loadedIds = containers.map { it.modelItem.id }.toSet()
+        val modelsToAdd = ModelItem.ALL_MODELS.filter { it.id !in loadedIds }
+        if (modelsToAdd.isEmpty()) {
+            Toast.makeText(this, "All 5 models are already on canvas", Toast.LENGTH_SHORT).show()
+            return
+        }
+        for (model in modelsToAdd) {
             addModel(model)
         }
         Toast.makeText(this, "Loaded all 5 models on canvas", Toast.LENGTH_SHORT).show()
@@ -420,23 +435,6 @@ class MainActivity : AppCompatActivity() {
         tvModelCounter.text = "$count ${if (count == 1) "Model" else "Models"}"
         btnClearAll.visibility = if (count > 0) View.VISIBLE else View.GONE
         emptyStateView.visibility = if (count == 0) View.VISIBLE else View.GONE
-    }
-
-    private fun showGestureGuide() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("🎮 Interaction & Gesture Guide")
-            .setMessage(
-                "• Normal Mode (Default):\n" +
-                "  🖐️ 1-Finger Drag: Moves the container across screen\n" +
-                "  🤏 2-Finger Pinch: Resizes the container\n\n" +
-                "• Interaction Mode (Tap '✋ Move/Resize'):\n" +
-                "  🔄 1-Finger Drag: Rotates / Orbits 3D model\n" +
-                "  🔍 2-Finger Pinch: Zooms 3D model in/out\n\n" +
-                "• Part Labels (Tap '🏷️ Labels: OFF'):\n" +
-                "  📌 Displays 3D-anchored anatomy labels that follow the model in real time!"
-            )
-            .setPositiveButton("Got It", null)
-            .show()
     }
 
     private fun getModelBuffer(fileName: String): ByteBuffer {
