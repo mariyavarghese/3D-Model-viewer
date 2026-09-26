@@ -73,3 +73,6 @@ com.mariya.modelviewer/
 └── ModelItem.kt           # Metadata for the 5 bundled GLB models (Bulb, Fiagena, Lungs, Microscope, Solar System)
 ```
 
+## The devices I tested on : 
+
+ Motorola Edge 50 
